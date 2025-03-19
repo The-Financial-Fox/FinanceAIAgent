@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
+from prophet import Prophet
 import os
 from groq import Groq
 from dotenv import load_dotenv
@@ -14,71 +16,93 @@ if not GROQ_API_KEY:
     st.error("🚨 API Key is missing! Set it in Streamlit Secrets or a .env file.")
     st.stop()
 
-# **🎨 Streamlit UI Styling**
-st.set_page_config(page_title="Financial Data Storyteller AI", page_icon="📊", layout="wide")
+# Streamlit App UI
+st.title("🔮 Financial Forecaster - AI-Powered Predictions")
+st.write("Upload an Excel file, select a column for forecasting, and get AI-generated financial insights!")
 
-st.markdown("""
-    <style>
-        .title { text-align: center; font-size: 36px; font-weight: bold; color: #2E0249; }
-        .subtitle { text-align: center; font-size: 20px; color: #4A0072; }
-        .stButton>button { width: 100%; background-color: #2E0249; color: white; font-size: 16px; font-weight: bold; }
-        .stFileUploader { text-align: center; }
-        .story-container { padding: 15px; border-radius: 10px; margin: 10px 0; background-color: #EDE7F6; }
-        .story-title { font-size: 20px; font-weight: bold; color: #4A0072; }
-        .story-desc { font-size: 16px; color: #2E0249; }
-    </style>
-""", unsafe_allow_html=True)
-
-# **📢 Title & Description**
-st.markdown('<h1 class="title">📊 Financial Data Storyteller AI</h1>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">Upload your financial data, and AI will craft a compelling data story with actionable insights.</p>', unsafe_allow_html=True)
-
-# **📂 Upload Financial Data**
-st.subheader("📥 Upload Your Financial Data (Excel)")
-uploaded_file = st.file_uploader("Choose an Excel file", type=["xlsx"])
+# File uploader
+uploaded_file = st.file_uploader("📂 Upload your financial data (Excel format)", type=["xlsx"])
 
 if uploaded_file:
+    # Read the uploaded Excel file
     df = pd.read_excel(uploaded_file)
+
+    # Display data preview
+    st.subheader("📊 Data Preview")
+    st.dataframe(df.head())
+
+    # Select column for forecasting
+    target_column = st.selectbox("📌 Select the column to forecast:", df.columns)
     
-    st.subheader("🔍 Data Preview")
-    st.dataframe(df)
+    # Select categorical column for filtering (if applicable)
+    categorical_columns = df.select_dtypes(include=['object']).columns
+    if len(categorical_columns) > 0:
+        selected_category_column = st.selectbox("🎯 Select a categorical column to filter (Optional):", [None] + list(categorical_columns))
+        if selected_category_column:
+            unique_values = df[selected_category_column].unique()
+            selected_value = st.selectbox(f"🔍 Select value from {selected_category_column}:", unique_values)
+            df = df[df[selected_category_column] == selected_value]
 
-    # Convert dataframe to a summary for AI
-    data_summary = df.describe(include='all').to_string()
+    # User input for forecast length
+    forecast_length = st.slider("⏳ Select the forecast length (days):", min_value=30, max_value=365, value=180)
 
-    # **User Input: Key Focus Areas**
-    st.subheader("🎯 What is the key message of your presentation?")
-    user_input = st.text_area("💡 Describe the main financial insights or business questions you want to highlight.")
+    if st.button("🚀 Generate Forecast"):
+        # Prepare data for Prophet
+        forecast_data = df.copy()
+        forecast_data = forecast_data.rename(columns={target_column: "y"})
+        forecast_data['ds'] = pd.date_range(start='2022-01-01', periods=len(df), freq='D')
 
-    if st.button("🚀 Generate Data Storytelling Strategy"):
-        client = Groq(api_key=GROQ_API_KEY)
+        # Train Prophet Model
+        model = Prophet(yearly_seasonality=True)
+        model.fit(forecast_data)
 
-        # AI Prompt for Storytelling
-        prompt = f"""
-        You are an expert in financial storytelling and executive presentations.
-        The user has uploaded financial data, and your task is to analyze it and craft a compelling story.
-        Your output should follow this structure:
-        1️⃣ **Overall Data Insights** – Key trends and findings from the uploaded data.
-        2️⃣ **Strategic Message** – What is the most important insight for senior stakeholders?
-        3️⃣ **Slide Narrative** – A structured sequence of slides with content for a CFO presentation.
-        4️⃣ **Actionable Takeaways** – Clear recommendations based on the data.
+        # Create future dates for prediction
+        future = model.make_future_dataframe(periods=forecast_length)
+        forecast = model.predict(future)
 
-        Data Summary:
-        {data_summary}
+        # Display Forecast Data
+        st.subheader("🔍 Forecasted Data Preview")
+        st.dataframe(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail())
 
-        Key User Input: {user_input}
+        # Allow user to download forecast results
+        forecast_file_path = "financial_forecast_results.xlsx"
+        forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].to_excel(forecast_file_path, index=False)
+        st.download_button(label="📥 Download Forecast Data", data=open(forecast_file_path, "rb"), file_name="forecast_results.xlsx")
+
+        # Plot Forecast
+        st.subheader("📈 Forecast Visualization")
+        fig1 = model.plot(forecast)
+        st.pyplot(fig1)
+
+        # Forecast Components
+        st.subheader("📊 Forecast Components")
+        fig2 = model.plot_components(forecast)
+        st.pyplot(fig2)
+
+        # Prepare summary for AI
+        forecast_summary = f"""
+        Financial Forecast Summary:
+        - Forecasted Period: {forecast['ds'].iloc[-forecast_length].strftime('%Y-%m-%d')} to {forecast['ds'].iloc[-1].strftime('%Y-%m-%d')}
+        - Expected Range:
+          - Lower Bound: ${forecast['yhat_lower'].iloc[-forecast_length:].min():,.2f}
+          - Upper Bound: ${forecast['yhat_upper'].iloc[-forecast_length:].max():,.2f}
+        - Average Forecasted Value: ${forecast['yhat'].iloc[-forecast_length:].mean():,.2f}
         """
 
+        # AI Commentary Section
+        st.subheader("🤖 AI-Generated Strategic Insights")
+
+        client = Groq(api_key=GROQ_API_KEY)
         response = client.chat.completions.create(
-            messages=[{"role": "system", "content": "You are a finance storytelling expert."},
-                      {"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": "You are an expert FP&A analyst providing insights on financial forecasts."},
+                {"role": "user", "content": f"The financial forecast is summarized below:\n{forecast_summary}\nPlease provide insights, identify trends, and give strategic recommendations."}
+            ],
             model="llama3-8b-8192",
         )
 
-        story_response = response.choices[0].message.content
+        ai_commentary = response.choices[0].message.content
 
-        # **Display AI Storytelling Strategy**
-        st.subheader("📖 AI-Generated Financial Storytelling Strategy")
-        st.markdown('<div class="story-container">', unsafe_allow_html=True)
-        st.write(story_response)
-        st.markdown('</div>', unsafe_allow_html=True)
+        # Display AI Commentary
+        st.subheader("💡 AI-Powered Forecast Insights")
+        st.write(ai_commentary)
