@@ -8,3 +8,6 @@ xgboost
 groq
 python-dotenv
 pmdarima
+numpy
+openpyxl
+scipy 
