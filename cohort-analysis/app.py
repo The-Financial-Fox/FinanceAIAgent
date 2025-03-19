@@ -1,13 +1,9 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 import os
-from dotenv import load_dotenv
-from statsmodels.tsa.arima.model import ARIMA
-from prophet import Prophet
-import xgboost as xgb
+import io
 from groq import Groq
+from dotenv import load_dotenv
 
 # Load API key securely
 load_dotenv()
@@ -17,96 +13,61 @@ if not GROQ_API_KEY:
     st.error("🚨 API Key is missing! Set it in Streamlit Secrets or a .env file.")
     st.stop()
 
-# Streamlit UI
-st.title("📈 AI-Driven Revenue Forecasting Agent")
-st.write("Upload revenue data and get AI-powered insights!")
+# Streamlit App UI
+st.set_page_config(page_title="Excel Formula Generator", page_icon="📊", layout="wide")
+st.title("📊 Excel Formula Generator – AI-Powered Financial Modeling")
+st.write("Describe the calculation you need, and AI will generate the best Excel formula for you!")
 
-# File uploader
-uploaded_file = st.file_uploader("📂 Upload your revenue data (CSV format)", type=["csv"])
+# User Input for Formula Description
+user_prompt = st.text_area("📝 Describe the Excel formula you need (e.g., 'Calculate the CAGR for a 5-year period', 'Find the top 5 highest sales values in a range', etc.): ")
 
-if uploaded_file:
-    # Read CSV file
-    df = pd.read_csv(uploaded_file, parse_dates=['Date'])
-    df = df.sort_values(by='Date')
-    
-    st.subheader("📊 Data Preview")
-    st.dataframe(df.head())
-    
-    # User selects forecast period
-    forecast_period = st.slider("Select Forecast Period (months)", 3, 24, 6)
-    
-    # ARIMA Forecast
-    def arima_forecast(df, periods):
-        model = ARIMA(df['Revenue'], order=(5,1,0))
-        model_fit = model.fit()
-        forecast = model_fit.forecast(steps=periods)
-        return forecast
-    
-    # Prophet Forecast
-    def prophet_forecast(df, periods):
-        df_prophet = df.rename(columns={'Date': 'ds', 'Revenue': 'y'})
-        model = Prophet()
-        model.fit(df_prophet)
-        future = model.make_future_dataframe(periods=periods, freq='M')
-        forecast = model.predict(future)
-        return forecast[['ds', 'yhat']]
-    
-    # XGBoost Forecast
-    def xgboost_forecast(df, periods):
-        df['Month'] = df['Date'].dt.month
-        df['Year'] = df['Date'].dt.year
-        X = df[['Month', 'Year']]
-        y = df['Revenue']
-        model = xgb.XGBRegressor(objective='reg:squarederror')
-        model.fit(X, y)
-        future_dates = pd.date_range(start=df['Date'].max(), periods=periods, freq='M')
-        future_df = pd.DataFrame({'Month': future_dates.month, 'Year': future_dates.year})
-        forecast = model.predict(future_df)
-        return future_dates, forecast
-    
-    # Generate forecasts
-    arima_pred = arima_forecast(df, forecast_period)
-    prophet_pred = prophet_forecast(df, forecast_period)
-    future_dates, xgb_pred = xgboost_forecast(df, forecast_period)
-    
-    # Plot results
-    st.subheader("📊 Forecast Results")
-    plt.figure(figsize=(12, 6))
-    plt.plot(df['Date'], df['Revenue'], label='Actual Revenue', marker='o')
-    plt.plot(prophet_pred['ds'].tail(forecast_period), prophet_pred['yhat'].tail(forecast_period), label='Prophet Forecast', linestyle='dashed')
-    plt.plot(future_dates, xgb_pred, label='XGBoost Forecast', linestyle='dotted')
-    plt.legend()
-    plt.xlabel('Date')
-    plt.ylabel('Revenue')
-    plt.title('Revenue Forecast Comparison')
-    st.pyplot(plt)
-    
-    # AI Summary Preparation
-    ai_summary = f"""
-    📌 **Revenue Forecast Summary**:
-    - Forecast Period: {forecast_period} months
-    - ARIMA Forecast: {list(arima_pred)}
-    - Prophet Forecast: {list(prophet_pred['yhat'].tail(forecast_period))}
-    - XGBoost Forecast: {list(xgb_pred)}
-    """
-    
-    # AI Agent for Insights
-    st.subheader("🤖 AI Insights - Revenue Growth Levers")
-    user_prompt = st.text_area("📝 Ask AI about revenue trends:", "Analyze forecast data and suggest growth strategies.")
-    
-    if st.button("🚀 Generate AI Insights"):
+if st.button("🚀 Generate Excel Formula"):
+    if user_prompt:
         client = Groq(api_key=GROQ_API_KEY)
         response = client.chat.completions.create(
             messages=[
-                {"role": "system", "content": "You are an AI financial analyst providing revenue insights."},
-                {"role": "user", "content": "The forecasted revenue data is:
-                {ai_summary}
-                {user_prompt}"}
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an AI assistant that generates Excel formulas for financial modeling and complex calculations. "
+                        "Users will describe what they need, and you will provide the most efficient Excel formula for it. "
+                        "Also, provide an explanation of how the formula works and an example use case."
+                    ),
+                },
+                {"role": "user", "content": f"Generate an Excel formula for this task: {user_prompt}. Explain how it works and provide an example."}
             ],
             model="llama3-8b-8192",
         )
-        ai_commentary = response.choices[0].message.content
-        
-        # Display AI commentary
-        st.subheader("💡 AI-Generated Revenue Insights")
-        st.write(ai_commentary)
+
+        ai_response = response.choices[0].message.content
+
+        # **Display AI-Generated Formula**
+        st.subheader("📊 AI-Generated Excel Formula")
+        st.write(ai_response)
+
+        # **Generate Sample Excel File with the Formula**
+        st.subheader("📥 Generate Sample Excel File")
+        if st.button("📂 Create Example Excel File"):
+            try:
+                # Create a simple sample dataset
+                data = {
+                    "Year": [2020, 2021, 2022, 2023, 2024],
+                    "Revenue": [100000, 120000, 150000, 180000, 210000],
+                    "Formula Applied": ["=CAGR(A2:A6, B2:B6)"] * 5  # Placeholder Formula
+                }
+
+                df = pd.DataFrame(data)
+
+                # Save to Excel
+                file_path = "generated_excel_formula.xlsx"
+                with pd.ExcelWriter(file_path, engine="xlsxwriter") as writer:
+                    df.to_excel(writer, index=False, sheet_name="Formula Example")
+
+                    # Add formula in Excel
+                    worksheet = writer.sheets["Formula Example"]
+                    worksheet.write_formula("D2", "=POWER(B6/B2, 1/(A6-A2))-1")  # Example formula for CAGR
+
+                st.download_button(label="📥 Download Excel File", data=open(file_path, "rb"), file_name="generated_excel_formula.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+            except Exception as e:
+                st.error(f"⚠️ Error generating Excel file: {e}")
