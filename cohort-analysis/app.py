@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 
 # Load API key securely
 load_dotenv()
+os.environ["GROQ_API_KEY"] = "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"
+
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
