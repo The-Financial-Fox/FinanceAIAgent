@@ -1,1 +1,9 @@
-
+streamlit
+pandas
+matplotlib
+seaborn
+statsmodels
+prophet
+xgboost
+groq
+python-dotenv
