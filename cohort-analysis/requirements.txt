@@ -7,3 +7,4 @@ prophet
 xgboost
 groq
 python-dotenv
+pmdarima
