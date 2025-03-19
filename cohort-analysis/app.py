@@ -99,7 +99,7 @@ if uploaded_file:
         response = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": "You are an AI financial analyst providing revenue insights."},
-                {"role": "user", "content": f"The forecasted revenue data is:
+                {"role": "user", "content": "The forecasted revenue data is:
                 {ai_summary}
                 {user_prompt}"}
             ],
