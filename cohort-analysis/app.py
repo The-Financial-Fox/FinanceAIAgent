@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
+from prophet import Prophet
 import os
-import io
 from groq import Groq
 from dotenv import load_dotenv
 
@@ -15,60 +16,92 @@ if not GROQ_API_KEY:
     st.stop()
 
 # Streamlit App UI
-st.set_page_config(page_title="Excel Formula Generator", page_icon="📊", layout="wide")
-st.title("📊 Excel Formula Generator – AI-Powered Financial Modeling")
-st.write("Describe the calculation you need, and AI will generate the best Excel formula for you!")
+st.title("🔮 Financial Forecaster - AI-Powered Predictions")
+st.write("Upload an Excel file, select a column for forecasting, and get AI-generated financial insights!")
 
-# User Input for Formula Description
-user_prompt = st.text_area("📝 Describe the Excel formula you need (e.g., 'Calculate the CAGR for a 5-year period', 'Find the top 5 highest sales values in a range', etc.): ")
+# File uploader
+uploaded_file = st.file_uploader("📂 Upload your financial data (Excel format)", type=["xlsx"])
 
-if st.button("🚀 Generate Excel Formula"):
-    if user_prompt:
+if uploaded_file:
+    # Read the uploaded Excel file
+    df = pd.read_excel(uploaded_file)
+
+    # Display data preview
+    st.subheader("📊 Data Preview")
+    st.dataframe(df.head())
+
+    # Select column for forecasting
+    target_column = st.selectbox("📌 Select the column to forecast:", df.columns)
+    
+    # Select categorical column for filtering (if applicable)
+    categorical_columns = df.select_dtypes(include=['object']).columns
+    if len(categorical_columns) > 0:
+        selected_category_column = st.selectbox("🎯 Select a categorical column to filter (Optional):", [None] + list(categorical_columns))
+        if selected_category_column:
+            unique_values = df[selected_category_column].unique()
+            selected_value = st.selectbox(f"🔍 Select value from {selected_category_column}:", unique_values)
+            df = df[df[selected_category_column] == selected_value]
+
+    # User input for forecast length
+    forecast_length = st.slider("⏳ Select the forecast length (days):", min_value=30, max_value=365, value=180)
+
+    if st.button("🚀 Generate Forecast"):
+        # Prepare data for Prophet
+        forecast_data = df.copy()
+        forecast_data = forecast_data.rename(columns={target_column: "y"})
+        forecast_data['ds'] = pd.date_range(start='2022-01-01', periods=len(df), freq='D')
+
+        # Train Prophet Model
+        model = Prophet(yearly_seasonality=True)
+        model.fit(forecast_data)
+
+        # Create future dates for prediction
+        future = model.make_future_dataframe(periods=forecast_length)
+        forecast = model.predict(future)
+
+        # Display Forecast Data
+        st.subheader("🔍 Forecasted Data Preview")
+        st.dataframe(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail())
+
+        # Allow user to download forecast results
+        forecast_file_path = "financial_forecast_results.xlsx"
+        forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].to_excel(forecast_file_path, index=False)
+        st.download_button(label="📥 Download Forecast Data", data=open(forecast_file_path, "rb"), file_name="forecast_results.xlsx")
+
+        # Plot Forecast
+        st.subheader("📈 Forecast Visualization")
+        fig1 = model.plot(forecast)
+        st.pyplot(fig1)
+
+        # Forecast Components
+        st.subheader("📊 Forecast Components")
+        fig2 = model.plot_components(forecast)
+        st.pyplot(fig2)
+
+        # Prepare summary for AI
+        forecast_summary = f"""
+        Financial Forecast Summary:
+        - Forecasted Period: {forecast['ds'].iloc[-forecast_length].strftime('%Y-%m-%d')} to {forecast['ds'].iloc[-1].strftime('%Y-%m-%d')}
+        - Expected Range:
+          - Lower Bound: ${forecast['yhat_lower'].iloc[-forecast_length:].min():,.2f}
+          - Upper Bound: ${forecast['yhat_upper'].iloc[-forecast_length:].max():,.2f}
+        - Average Forecasted Value: ${forecast['yhat'].iloc[-forecast_length:].mean():,.2f}
+        """
+
+        # AI Commentary Section
+        st.subheader("🤖 AI-Generated Strategic Insights")
+
         client = Groq(api_key=GROQ_API_KEY)
         response = client.chat.completions.create(
             messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are an AI assistant that generates Excel formulas for financial modeling and complex calculations. "
-                        "Users will describe what they need, and you will provide the most efficient Excel formula for it. "
-                        "Also, provide an explanation of how the formula works and an example use case."
-                    ),
-                },
-                {"role": "user", "content": f"Generate an Excel formula for this task: {user_prompt}. Explain how it works and provide an example."}
+                {"role": "system", "content": "You are an expert FP&A analyst providing insights on financial forecasts."},
+                {"role": "user", "content": f"The financial forecast is summarized below:\n{forecast_summary}\nPlease provide insights, identify trends, and give strategic recommendations."}
             ],
             model="llama3-8b-8192",
         )
 
-        ai_response = response.choices[0].message.content
+        ai_commentary = response.choices[0].message.content
 
-        # **Display AI-Generated Formula**
-        st.subheader("📊 AI-Generated Excel Formula")
-        st.write(ai_response)
-
-        # **Generate Sample Excel File with the Formula**
-        st.subheader("📥 Generate Sample Excel File")
-        if st.button("📂 Create Example Excel File"):
-            try:
-                # Create a simple sample dataset
-                data = {
-                    "Year": [2020, 2021, 2022, 2023, 2024],
-                    "Revenue": [100000, 120000, 150000, 180000, 210000],
-                    "Formula Applied": ["=CAGR(A2:A6, B2:B6)"] * 5  # Placeholder Formula
-                }
-
-                df = pd.DataFrame(data)
-
-                # Save to Excel
-                file_path = "generated_excel_formula.xlsx"
-                with pd.ExcelWriter(file_path, engine="xlsxwriter") as writer:
-                    df.to_excel(writer, index=False, sheet_name="Formula Example")
-
-                    # Add formula in Excel
-                    worksheet = writer.sheets["Formula Example"]
-                    worksheet.write_formula("D2", "=POWER(B6/B2, 1/(A6-A2))-1")  # Example formula for CAGR
-
-                st.download_button(label="📥 Download Excel File", data=open(file_path, "rb"), file_name="generated_excel_formula.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-            except Exception as e:
-                st.error(f"⚠️ Error generating Excel file: {e}")
+        # Display AI Commentary
+        st.subheader("💡 AI-Powered Forecast Insights")
+        st.write(ai_commentary)
