@@ -1,0 +1,39 @@
+Big News: Excel has Agent Mode
+
+Think Copilot, but instead of just suggesting, it acts inside your workbook.
+
+It builds, edits, and reasons step by step.
+
+I put together a full guide for CFOs, Finance, and FP&A teams on how to use this new AI capability for finance:
+
+https://lnkd.in/eaFuD7vH
+
+It also includes a step by step on how to "download" it.
+
+This way you can see what has been tested and know if it can help you to automate reporting, forecasting, and even build valuation models!
+
+If you want me to send the Excel file with the results just comment "AI Agent Mode" and I can send!
+
+Here’s what Agent Mode can do live in your workbook:
+
+ ✅ Automate budget roll-forwards across tabs
+ ✅ Merge messy data into clean Pivot-ready tables
+ ✅ Generate full variance analysis with commentary
+ ✅ Build multi-tab models like DCFs & 3-statement forecasts
+ ✅ Iterate until the output matches CFO-level standards
+
+And the best part? Everything stays editable.
+
+Some sample prompts you can try right now:
+
+"Build a 5-year DCF model with revenue, OPEX, EBITDA, FCF, and terminal value. Format outputs in CFO-ready style."
+
+ "Consolidate actuals from multiple sheets into one clean variance-to-budget report with conditional formatting."
+
+ "Generate a revenue forecast with 3 growth scenarios (Base, Optimistic, Downside) and plot a chart of outcomes."
+
+ "Draft a month-end financial summary with key drivers, risks, and opportunities based on this dataset."
+
+ "Reshape this dataset into a management-ready P&L with standard financial formatting and subtotals."
+
+Hope this guide helps!
