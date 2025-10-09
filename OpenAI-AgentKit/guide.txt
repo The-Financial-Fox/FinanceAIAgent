@@ -1,0 +1,36 @@
+OpenAI just released AgentKit so you can now build, deploy, and optimize AI Agentic workflows.
+
+Download my free guide to learn how you can use it for Finance and FP&A teams
+
+https://lnkd.in/e7bauN5P
+
+With OpenAI AgentKit, you can now build your own AI agents that connect data, perform analysis, and generate insights — without code.
+
+Here’s what’s possible:
+
+Also I did the first one as example, if you want the Excel file with the data being used and the prompts for the agent just comment AgentKit! 
+
+✅ Forecasting Automation
+Build an agent that pulls live data from your ERP and CRM, runs updated forecasts, and explains variances — automatically.
+
+✅ Variance Analysis
+Set up an agent to reconcile actuals vs. plan, highlight key drivers, and draft commentary for your month-end close deck.
+
+✅ Cash Flow Management
+Let your agent monitor liquidity in real time and simulate stress scenarios on demand.
+
+✅ Management Reporting
+Have it generate CFO-ready summaries, charts, and insights — directly in PowerPoint or Excel.
+
+✅ Scenario Planning
+Model new business conditions interactively, and let your AI agent test assumptions and visualize outcomes instantly.
+
+How It Works
+
+Design: Build agent workflows in OpenAI’s Agent Builder — drag and drop models, tools, and logic.
+
+Deploy: Embed into dashboards with ChatKit or code with the Agents SDK.
+
+Optimize: Continuously evaluate performance with Evals and Prompt Optimizer.
+
+Inside the guide all details on how to use this powerful new tool for finance and FP&A use cases
