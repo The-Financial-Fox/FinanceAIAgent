@@ -78,7 +78,7 @@ if uploaded_file:
                 {"role": "system", "content": "You are an AI-powered FP&A analyst providing financial insights."},
                 {"role": "user", "content": f"The cohort retention analysis is summarized below:\n{cohort_summary}\n{user_prompt}"}
             ],
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
         )
 
         ai_commentary = response.choices[0].message.content
